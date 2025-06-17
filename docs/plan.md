@@ -49,11 +49,11 @@ All sub-items are **independent, testable, rollback-safe** sentences your AI dev
 - [X] Create a negative test that proves cross-account access is rejected with HTTP 401.
 - [X] Document the RLS rules in `docs/security.md`.
 
-### [ ] Feature 3 – Document Service
-- [ ] Implement CRUD helpers (`createDoc`, `renameDoc`, `deleteDoc`, `saveDoc`) in `lib/documentService.ts`.
-- [ ] Wrap each helper with **Supabase Edge Functions** for minimal latency from the browser.
-- [ ] Expose React Query hooks (`useDocuments`, `useDocument`) for cache-aware data fetching.
-- [ ] Write unit tests with mocked Supabase calls ensuring each helper resolves the correct shape.
+### [X] Feature 3 – Document Service
+- [X] Implement CRUD helpers (`createDoc`, `renameDoc`, `deleteDoc`, `saveDoc`) in `lib/documentService.ts`.
+- [X] Wrap each helper with **Next.js API Routes** for minimal latency from the browser.
+- [X] Expose React Query hooks (`useDocuments`, `useDocument`) for cache-aware data fetching.
+- [X] Write functional tests with real API calls ensuring each helper resolves the correct shape.
 
 ### [ ] Feature 4 – Autosave Engine
 - [ ] Detect "dirty" editor state and schedule a debounced **10 s** autosave via `saveDoc`.
