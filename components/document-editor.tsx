@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAutosave } from '@/lib/hooks/useAutosave';
 import { SaveStatus } from '@/components/save-status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Save, Keyboard } from 'lucide-react';
+import { Save, Keyboard, CheckCircle } from 'lucide-react';
 import { useUpdateDocument } from '@/lib/hooks/useDocuments';
 import { Document } from '@/lib/documentService';
+import { useSpellCheck, useSpellCheckOnSpace } from '@/lib/hooks/useSpellCheck';
+import { SpellCheckMenu, useSpellCheckMenu } from '@/components/spell-check-menu';
 
 console.log('🔄 DocumentEditor component loaded');
 
@@ -29,6 +31,11 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
   const [lastManualSave, setLastManualSave] = useState<Date | null>(null);
 
   const updateMutation = useUpdateDocument();
+  const contentEditableRef = useRef<HTMLDivElement>(null);
+
+  // Spell check functionality
+  const spellCheck = useSpellCheck();
+  const spellCheckMenu = useSpellCheckMenu();
 
   // Autosave hook
   const autosave = useAutosave({
@@ -68,6 +75,53 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
     // Schedule autosave for content change
     autosave.scheduleAutosave({ content: newContent });
   }, [autosave]);
+
+  // Spell check on spacebar press
+  useSpellCheckOnSpace(
+    (text: string) => {
+      console.log('🔍 DocumentEditor: Triggering spell check on spacebar');
+      spellCheck.checkText(text);
+    },
+    () => contentEditableRef.current?.textContent || ''
+  );
+
+  // Handle spell check suggestion application
+  const handleSuggestionApply = useCallback((suggestion: string) => {
+    console.log('✅ DocumentEditor: Applying spell check suggestion:', suggestion);
+
+    if (!contentEditableRef.current) return;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    range.deleteContents();
+    range.insertNode(window.document.createTextNode(suggestion));
+
+    // Update content state
+    const newContent = contentEditableRef.current.textContent || '';
+    handleContentChange(newContent);
+
+    spellCheckMenu.hideMenu();
+  }, [handleContentChange, spellCheckMenu]);
+
+  // Handle right-click on misspelled words
+  const handleContextMenu = useCallback((event: React.MouseEvent) => {
+    event.preventDefault();
+
+    const target = event.target as HTMLElement;
+    const word = target.textContent;
+
+    if (!word) return;
+
+    // Find the error that matches this word
+    const error = spellCheck.errors.find(err => err.word === word.trim());
+
+    if (error) {
+      console.log('🔍 DocumentEditor: Right-clicked on misspelled word:', error.word);
+      spellCheckMenu.showMenu(error, event.nativeEvent);
+    }
+  }, [spellCheck.errors, spellCheckMenu]);
 
   // Manual save function
   const handleManualSave = useCallback(async () => {
@@ -154,9 +208,10 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
         </div>
       </CardHeader>
 
-      <CardContent className="flex-1 p-6">
+            <CardContent className="flex-1 p-6 relative">
         {/* Content Editor - Contenteditable for distraction-free experience */}
         <div
+          ref={contentEditableRef}
           contentEditable
           suppressContentEditableWarning={true}
           onInput={(e) => {
@@ -172,6 +227,7 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
               handleContentChange(newContent);
             }
           }}
+          onContextMenu={handleContextMenu}
           className="w-full h-full outline-none bg-transparent text-sm leading-relaxed focus:outline-none"
           style={{
             minHeight: '400px',
@@ -179,13 +235,18 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
             overflowWrap: 'break-word'
           }}
           data-placeholder="Start writing..."
-          ref={(el) => {
-            // Sync content when component updates
-            if (el && el.textContent !== content) {
-              console.log('📝 DocumentEditor: Syncing contenteditable with state');
-              el.textContent = content;
-            }
+        />
+
+        {/* Spell Check Menu */}
+        <SpellCheckMenu
+          error={spellCheckMenu.menuState.error}
+          position={spellCheckMenu.menuState.position}
+          onSuggestionSelect={handleSuggestionApply}
+          onIgnore={() => {
+            console.log('🔄 DocumentEditor: Ignoring spell check suggestion');
+            spellCheckMenu.hideMenu();
           }}
+          onClose={spellCheckMenu.hideMenu}
         />
       </CardContent>
 
@@ -196,11 +257,30 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
           {hasUnsavedChanges && (
             <span className="text-orange-500 dark:text-orange-400">Unsaved changes</span>
           )}
+          {spellCheck.errors.length > 0 && (
+            <span className="text-red-500 dark:text-red-400">
+              {spellCheck.errors.length} spelling error{spellCheck.errors.length !== 1 ? 's' : ''}
+            </span>
+          )}
+          {spellCheck.isInitialized && spellCheck.errors.length === 0 && content.length > 0 && (
+            <span className="text-green-600 dark:text-green-400 flex items-center gap-1">
+              <CheckCircle size={12} />
+              No spelling errors
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-1">
-          <Keyboard size={12} />
-          <span>Ctrl+S to save</span>
+        <div className="flex items-center gap-4">
+          {spellCheck.isInitializing && (
+            <span className="text-blue-500 dark:text-blue-400">Loading spell check...</span>
+          )}
+          {spellCheck.initError && (
+            <span className="text-red-500 dark:text-red-400">Spell check unavailable</span>
+          )}
+          <div className="flex items-center gap-1">
+            <Keyboard size={12} />
+            <span>Ctrl+S to save</span>
+          </div>
         </div>
       </CardFooter>
     </Card>

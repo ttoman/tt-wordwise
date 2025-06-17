@@ -74,3 +74,14 @@
   pointer-events: none;
   position: absolute;
 }
+
+/* Spell check highlighting */
+.misspelled {
+  background-color: rgba(239, 68, 68, 0.1);
+  border-bottom: 2px wavy rgb(239, 68, 68);
+  cursor: pointer;
+}
+
+.misspelled:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+}

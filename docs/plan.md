@@ -91,11 +91,11 @@ All sub-items are **independent, testable, rollback-safe** sentences your AI dev
 ## [ ] Phase 4 – Implementation Layer
 *Core writing-assistant functionality that delivers user value.*
 
-### [ ] Feature 1 – Client-Side Spelling Check
-- [ ] Install **`nspell` + `dictionary-en`** and load dictionaries at editor start-up.
-- [ ] On every **spacebar** press, tokenize the previous word and check spelling locally.
-- [ ] Wrap misspelled words in a span with a red underline CSS class.
-- [ ] Show a custom right-click menu listing up to 5 correction suggestions; apply replacement on click.
+### [X] Feature 1 – Client-Side Spelling Check
+- [X] Install **`nspell` + `dictionary-en`** and load dictionaries at editor start-up.
+- [X] On every **spacebar** press, tokenize the previous word and check spelling locally.
+- [X] Wrap misspelled words in a span with a red underline CSS class.
+- [X] Show a custom right-click menu listing up to 5 correction suggestions; apply replacement on click.
 
 ### [ ] Feature 2 – Grammar & Style Suggestions
 - [ ] Start a debounced timer (2 s idle) to gather the current sentence and send to **GPT-4o mini** via a Vercel Edge proxy.
