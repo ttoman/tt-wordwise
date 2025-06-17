@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { DocumentSidebar } from './document-sidebar';
 import { DocumentEditor } from '@/components/document-editor';
 import { FeedbackPanel } from '@/components/feedback-panel';
@@ -27,8 +27,21 @@ export function WorkspaceLayout() {
   const [documentContent, setDocumentContent] = useState<string>('');
 
   // Document state
-  const { documents, loading: documentsLoading, error: documentsError } = useDocuments();
-  const { document: selectedDocument, loading: documentLoading, error: documentError } = useDocument(selectedDocumentId);
+  const { data: documents, isLoading: documentsLoading, error: documentsError } = useDocuments();
+  const { data: selectedDocument, isLoading: documentLoading, error: documentError } = useDocument(selectedDocumentId);
+
+  // Only log when values actually change to reduce console spam
+  const documentState = useMemo(() => ({
+    selectedDocumentId,
+    selectedDocument: !!selectedDocument ? selectedDocument.id : null,
+    documentsCount: documents?.length,
+    documentLoading,
+    documentsLoading,
+  }), [selectedDocumentId, selectedDocument, documents?.length, documentLoading, documentsLoading]);
+
+  useEffect(() => {
+    console.log('📊 WorkspaceLayout: State snapshot', documentState);
+  }, [documentState]);
 
   // Feedback state - manage at workspace level
   const spellCheck = useSpellCheck();
@@ -68,14 +81,17 @@ export function WorkspaceLayout() {
     () => documentContent
   );
 
-  // Handle document content changes
+  // Handle document content changes - debounced to reduce state updates
   const handleDocumentContentChange = useCallback((content: string) => {
-    console.log('📝 WorkspaceLayout: Document content changed, length:', content.length);
-    setDocumentContent(content);
+    // Only log and update if content actually changed
+    if (content !== documentContent) {
+      console.log('📝 WorkspaceLayout: Document content changed, length:', content.length);
+      setDocumentContent(content);
 
-    // Schedule grammar check
-    scheduleGrammarCheck();
-  }, [scheduleGrammarCheck]);
+      // Schedule grammar check
+      scheduleGrammarCheck();
+    }
+  }, [documentContent, scheduleGrammarCheck]);
 
   // Handle spell check error interactions
   const handleSpellErrorClick = useCallback((error: any) => {
@@ -144,33 +160,44 @@ export function WorkspaceLayout() {
     };
 
     checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+
+    // Debounce resize events
+    let resizeTimeout: NodeJS.Timeout;
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(checkMobile, 100);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(resizeTimeout);
+    };
   }, [sidebarOpen]);
 
   // Handle document selection
-  const handleDocumentSelect = (document: Document) => {
+  const handleDocumentSelect = useCallback((document: Document) => {
     console.log('📄 WorkspaceLayout: Document selected:', document.id);
     setSelectedDocumentId(document.id);
     if (isMobile) {
       setSidebarOpen(false);
     }
-  };
+  }, [isMobile]);
 
   // Handle document creation
-  const handleDocumentCreate = (document: Document) => {
+  const handleDocumentCreate = useCallback((document: Document) => {
     console.log('📄 WorkspaceLayout: Document created:', document.id);
     setSelectedDocumentId(document.id);
     if (isMobile) {
       setSidebarOpen(false);
     }
-  };
+  }, [isMobile]);
 
   // Toggle sidebar
-  const toggleSidebar = () => {
+  const toggleSidebar = useCallback(() => {
     console.log('🔄 WorkspaceLayout: Toggling sidebar');
-    setSidebarOpen(!sidebarOpen);
-  };
+    setSidebarOpen(prev => !prev);
+  }, []);
 
   // Loading state
   if (documentsLoading) {
@@ -272,7 +299,7 @@ export function WorkspaceLayout() {
                   <div>
                     <h3 className="font-semibold">No Document Selected</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {documents.length === 0
+                      {documents?.length === 0
                         ? 'Create your first document to get started'
                         : 'Select a document from the sidebar to begin editing'
                       }

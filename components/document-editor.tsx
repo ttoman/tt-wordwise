@@ -33,9 +33,13 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
   const [title, setTitle] = useState(document.title);
   const [content, setContent] = useState(document.content || '');
   const [lastManualSave, setLastManualSave] = useState<Date | null>(null);
+  const [contentChangeCount, setContentChangeCount] = useState(0);
 
   const updateMutation = useUpdateDocument();
   const contentEditableRef = useRef<HTMLDivElement>(null);
+  const lastContentRef = useRef(document.content || '');
+  const lastTitleRef = useRef(document.title);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Spell check functionality
   const spellCheck = useSpellCheck();
@@ -83,26 +87,60 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
   // Update local state when document prop changes
   useEffect(() => {
     console.log('🔄 DocumentEditor: Document prop changed, updating local state');
-    setTitle(document.title);
-    setContent(document.content || '');
+
+    // Only update if document ID changes or content actually differs
+    if (document.id !== lastContentRef.current ||
+        document.title !== lastTitleRef.current ||
+        document.content !== lastContentRef.current) {
+
+      setTitle(document.title);
+      setContent(document.content || '');
+
+      // Update refs
+      lastContentRef.current = document.content || '';
+      lastTitleRef.current = document.title;
+    }
   }, [document.id, document.title, document.content]);
 
-  // Handle title changes
+  // Debounced title change handler
   const handleTitleChange = useCallback((newTitle: string) => {
+    if (newTitle === lastTitleRef.current) return;
+
     console.log('📝 DocumentEditor: Title changed to:', newTitle);
     setTitle(newTitle);
+    lastTitleRef.current = newTitle;
 
-    // Schedule autosave for title change
-    autosave.scheduleAutosave({ title: newTitle });
+    // Clear any existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Schedule autosave for title change with a short debounce
+    debounceTimerRef.current = setTimeout(() => {
+      autosave.scheduleAutosave({ title: newTitle });
+      debounceTimerRef.current = null;
+    }, 500);
   }, [autosave]);
 
-  // Handle content changes
+  // Debounced content change handler
   const handleContentChange = useCallback((newContent: string) => {
+    if (newContent === lastContentRef.current) return;
+
     console.log('📝 DocumentEditor: Content changed, length:', newContent.length);
     setContent(newContent);
+    lastContentRef.current = newContent;
+    setContentChangeCount(prev => prev + 1);
 
-    // Schedule autosave for content change
-    autosave.scheduleAutosave({ content: newContent });
+    // Clear any existing debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    // Schedule autosave for content change with a short debounce
+    debounceTimerRef.current = setTimeout(() => {
+      autosave.scheduleAutosave({ content: newContent });
+      debounceTimerRef.current = null;
+    }, 500);
 
     // Schedule grammar check on content change
     scheduleGrammarCheck();
@@ -187,6 +225,12 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
   const handleManualSave = useCallback(async () => {
     console.log('⚡ DocumentEditor: Manual save triggered');
 
+    // Clear any pending debounce timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
     const success = await autosave.forceSave({
       title,
       content,
@@ -218,17 +262,30 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
     };
   }, [handleManualSave]);
 
+  // Clean up debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
+
   // Calculate if there are unsaved changes
   const hasUnsavedChanges = title !== document.title || content !== (document.content || '');
 
-  console.log('📊 DocumentEditor: Current state', {
-    documentId: document.id,
-    titleLength: title.length,
-    contentLength: content.length,
-    hasUnsavedChanges,
-    autosaveState: autosave.state.status,
-    isDirty: autosave.state.isDirty
-  });
+  // Only log state changes when they actually happen
+  useEffect(() => {
+    console.log('📊 DocumentEditor: Current state', {
+      documentId: document.id,
+      titleLength: title.length,
+      contentLength: content.length,
+      contentChangeCount,
+      hasUnsavedChanges,
+      autosaveState: autosave.state.status,
+      isDirty: autosave.state.isDirty
+    });
+  }, [document.id, title.length, contentChangeCount, hasUnsavedChanges, autosave.state.status, autosave.state.isDirty]);
 
   return (
     <Card className="w-full h-full flex flex-col">

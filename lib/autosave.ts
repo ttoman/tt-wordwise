@@ -8,6 +8,7 @@ console.log('🔄 Autosave engine loaded');
 const AUTOSAVE_DELAY = 10 * 1000; // 10 seconds
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_BASE = 1000; // 1 second base delay
+const MIN_CONTENT_CHANGE_LENGTH = 5; // Minimum content change to trigger save
 
 // Autosave status types
 export type AutosaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
@@ -31,6 +32,8 @@ class AutosaveEngine {
   private retryAttempts = new Map<string, number>();
   private states = new Map<string, AutosaveState>();
   private lastContent = new Map<string, string>();
+  private lastTitle = new Map<string, string>();
+  private pendingSaves = new Map<string, boolean>();
 
   constructor() {
     console.log('✅ AutosaveEngine: Initialized');
@@ -88,16 +91,34 @@ class AutosaveEngine {
   }
 
   /**
-   * Check if content has changed (dirty state detection)
+   * Check if content has changed significantly (dirty state detection)
    */
-  private isDirty(documentId: string, currentContent: string): boolean {
+  private isDirty(documentId: string, data: UpdateDocumentData): boolean {
     const lastSavedContent = this.lastContent.get(documentId) || '';
-    const isDirty = currentContent !== lastSavedContent;
+    const lastSavedTitle = this.lastTitle.get(documentId) || '';
+
+    const currentContent = data.content !== undefined ? data.content : lastSavedContent;
+    const currentTitle = data.title !== undefined ? data.title : lastSavedTitle;
+
+    // Check if title has changed
+    const titleChanged = currentTitle !== lastSavedTitle;
+
+    // Check if content has changed significantly
+    let contentChanged = false;
+    if (data.content !== undefined) {
+      const contentDiff = Math.abs(currentContent.length - lastSavedContent.length);
+      contentChanged = currentContent !== lastSavedContent &&
+                      (contentDiff >= MIN_CONTENT_CHANGE_LENGTH || currentTitle !== lastSavedTitle);
+    }
+
+    const isDirty = titleChanged || contentChanged;
 
     console.log('🔍 AutosaveEngine: Dirty check for', documentId, {
       isDirty,
-      currentLength: currentContent.length,
-      lastSavedLength: lastSavedContent.length
+      titleChanged,
+      contentChanged,
+      currentContentLength: currentContent.length,
+      lastSavedContentLength: lastSavedContent.length
     });
 
     return isDirty;
@@ -109,9 +130,14 @@ class AutosaveEngine {
   scheduleAutosave(documentId: string, data: UpdateDocumentData): void {
     console.log('🔄 AutosaveEngine: Scheduling autosave for', documentId);
 
+    // Skip if there's already a pending save operation
+    if (this.pendingSaves.get(documentId)) {
+      console.log('⏭️ AutosaveEngine: Save already in progress, skipping for', documentId);
+      return;
+    }
+
     // Check if content is dirty
-    const contentToCheck = data.content || '';
-    const dirty = this.isDirty(documentId, contentToCheck);
+    const dirty = this.isDirty(documentId, data);
 
     if (!dirty) {
       console.log('⏭️ AutosaveEngine: Content unchanged, skipping autosave for', documentId);
@@ -144,6 +170,8 @@ class AutosaveEngine {
   private async performAutosave(documentId: string, data: UpdateDocumentData): Promise<void> {
     console.log('💾 AutosaveEngine: Performing autosave for', documentId);
 
+    // Mark save as in progress
+    this.pendingSaves.set(documentId, true);
     this.setState(documentId, { status: 'saving' });
 
     try {
@@ -152,9 +180,12 @@ class AutosaveEngine {
       if (result.success && result.data) {
         console.log('✅ AutosaveEngine: Autosave successful for', documentId);
 
-        // Update last saved content
+        // Update last saved content and title
         if (data.content !== undefined) {
           this.lastContent.set(documentId, data.content);
+        }
+        if (data.title !== undefined) {
+          this.lastTitle.set(documentId, data.title);
         }
 
         // Reset retry attempts
@@ -216,6 +247,14 @@ class AutosaveEngine {
 
         this.emitSaveError(documentId, errorMessage);
         this.retryAttempts.delete(documentId);
+        // Clear pending save flag to allow future save attempts
+        this.pendingSaves.set(documentId, false);
+      }
+    } finally {
+      // Clear pending save flag unless we're in retry mode
+      const isRetrying = this.retryAttempts.get(documentId) || 0 > 0;
+      if (!isRetrying) {
+        this.pendingSaves.set(documentId, false);
       }
     }
   }
@@ -250,7 +289,7 @@ class AutosaveEngine {
     const timer = this.timers.get(documentId);
     if (timer) {
       clearTimeout(timer);
-      this.timers.delete(timer);
+      this.timers.delete(documentId);
     }
 
     const currentState = this.getState(documentId);
@@ -266,6 +305,8 @@ class AutosaveEngine {
     console.log('🎯 AutosaveEngine: Initializing document', documentId);
 
     this.lastContent.set(documentId, initialContent);
+    this.lastTitle.set(documentId, '');
+    this.pendingSaves.set(documentId, false);
     this.setState(documentId, {
       status: 'idle',
       isDirty: false,
@@ -282,7 +323,9 @@ class AutosaveEngine {
     this.cancelAutosave(documentId);
     this.states.delete(documentId);
     this.lastContent.delete(documentId);
+    this.lastTitle.delete(documentId);
     this.retryAttempts.delete(documentId);
+    this.pendingSaves.delete(documentId);
   }
 
   /**
@@ -292,11 +335,13 @@ class AutosaveEngine {
     activeTimers: number;
     trackedDocuments: number;
     retryingDocuments: number;
+    pendingSaves: number;
   } {
     return {
       activeTimers: this.timers.size,
       trackedDocuments: this.states.size,
       retryingDocuments: this.retryAttempts.size,
+      pendingSaves: [...this.pendingSaves.values()].filter(Boolean).length
     };
   }
 }
