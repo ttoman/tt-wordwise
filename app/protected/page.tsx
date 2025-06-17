@@ -6,6 +6,7 @@ import { FetchDataSteps } from "@/components/tutorial/fetch-data-steps";
 import { UserDebug } from "@/components/user-debug";
 
 
+
 export default async function ProtectedPage() {
   const supabase = await createClient();
 
@@ -33,6 +34,8 @@ export default async function ProtectedPage() {
         <h2 className="font-bold text-2xl mb-4">useUser Hook Test (Client-side)</h2>
         <UserDebug />
       </div>
+
+
 
       <div>
         <h2 className="font-bold text-2xl mb-4">Next steps</h2>

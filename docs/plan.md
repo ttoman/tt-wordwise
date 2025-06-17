@@ -34,7 +34,7 @@ All sub-items are **independent, testable, rollback-safe** sentences your AI dev
 
 ---
 
-## [ ] Phase 2 – Data Layer
+## [X] Phase 2 – Data Layer
 *Database schema, security, and client-side data services.*
 
 ### [X] Feature 1 – Database Schema
@@ -55,11 +55,11 @@ All sub-items are **independent, testable, rollback-safe** sentences your AI dev
 - [X] Expose React Query hooks (`useDocuments`, `useDocument`) for cache-aware data fetching.
 - [X] Write functional tests with real API calls ensuring each helper resolves the correct shape.
 
-### [ ] Feature 4 – Autosave Engine
-- [ ] Detect "dirty" editor state and schedule a debounced **10 s** autosave via `saveDoc`.
-- [ ] Show a subtle `Saving… ✓ Saved` status in the editor footer.
-- [ ] Retry failed autosaves with exponential back-off up to 3 attempts before surfacing an error toast.
-- [ ] Emit a custom event (`doc:saved`) so other modules can react (e.g., token tracking).
+### [X] Feature 4 – Autosave Engine
+- [X] Detect "dirty" editor state and schedule a debounced **10 s** autosave via `saveDoc`.
+- [X] Show a subtle `Saving… ✓ Saved` status in the editor footer.
+- [X] Retry failed autosaves with exponential back-off up to 3 attempts before surfacing an error toast.
+- [X] Emit a custom event (`doc:saved`) so other modules can react (e.g., token tracking).
 
 ---
 
