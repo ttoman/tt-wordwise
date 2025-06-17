@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { DocumentSidebar } from './document-sidebar';
 import { DocumentEditor } from '@/components/document-editor';
+
 import { useDocuments, useDocument } from '@/lib/hooks/useDocuments';
 import { Document } from '@/lib/documentService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Menu, X, FileText, AlertTriangle } from 'lucide-react';
+import { Menu, X, FileText, AlertTriangle, CheckCircle, Edit3, BookOpen } from 'lucide-react';
 
 console.log('🔄 WorkspaceLayout component loaded');
 
@@ -156,76 +157,137 @@ export function WorkspaceLayout() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile Header */}
-        {isMobile && (
-          <div className="flex items-center justify-between p-4 border-b bg-background">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleSidebar}
-              className="p-2"
-            >
-              <Menu size={18} />
-            </Button>
-            <h1 className="font-semibold truncate">
-              {selectedDocument?.title || 'Wordwise'}
-            </h1>
-            <div className="w-10" /> {/* Spacer for balance */}
+      <div className="flex-1 flex min-w-0">
+        {/* Document Editor Section */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Mobile Header */}
+          {isMobile && (
+            <div className="flex items-center justify-between p-4 border-b bg-background">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleSidebar}
+                className="p-2"
+              >
+                <Menu size={18} />
+              </Button>
+              <h1 className="font-semibold truncate">
+                {selectedDocument?.title || 'Wordwise'}
+              </h1>
+              <div className="w-10" /> {/* Spacer for balance */}
+            </div>
+          )}
+
+          {/* Editor Area */}
+          <div className="flex-1 p-4 overflow-hidden">
+            {documentError ? (
+              <Card className="h-full flex items-center justify-center">
+                <CardContent className="text-center space-y-4">
+                  <AlertTriangle size={48} className="mx-auto text-destructive" />
+                  <div>
+                    <h3 className="font-semibold text-destructive">Error Loading Document</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {documentError.message || 'Failed to load the selected document'}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : !selectedDocument && !documentLoading ? (
+              <Card className="h-full flex items-center justify-center">
+                <CardContent className="text-center space-y-4">
+                  <FileText size={48} className="mx-auto text-muted-foreground" />
+                  <div>
+                    <h3 className="font-semibold">No Document Selected</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {documents.length === 0
+                        ? 'Create your first document to get started'
+                        : 'Select a document from the sidebar to begin editing'
+                      }
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : documentLoading ? (
+              <Card className="h-full flex items-center justify-center">
+                <CardContent className="text-center space-y-4">
+                  <FileText size={48} className="mx-auto text-muted-foreground animate-pulse" />
+                  <div className="space-y-2">
+                    <div className="h-4 bg-muted rounded w-32 mx-auto animate-pulse"></div>
+                    <div className="h-3 bg-muted rounded w-24 mx-auto animate-pulse"></div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : selectedDocument ? (
+              <DocumentEditor
+                document={selectedDocument}
+                onSaved={() => {
+                  console.log('📝 WorkspaceLayout: Document saved');
+                }}
+                onError={(error) => {
+                  console.error('❌ WorkspaceLayout: Document error:', error);
+                }}
+              />
+            ) : null}
+          </div>
+        </div>
+
+        {/* Feedback Panel - Only show when document is selected and not on mobile */}
+        {selectedDocument && !documentLoading && !documentError && !isMobile && (
+          <div className="w-80 h-full bg-background border-l overflow-y-auto">
+            <div className="space-y-4 p-4">
+              {/* Header */}
+              <div className="space-y-2">
+                <h2 className="text-lg font-semibold">Writing Feedback</h2>
+                <p className="text-xs text-muted-foreground">
+                  Real-time analysis and suggestions for your document
+                </p>
+              </div>
+
+              {/* Placeholder content for now */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle size={16} className="text-green-600" />
+                      <span className="text-sm font-medium">Spelling</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Spell check feedback will appear here
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Edit3 size={16} className="text-blue-600" />
+                      <span className="text-sm font-medium">Grammar & Style</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Grammar suggestions will appear here
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <BookOpen size={16} className="text-purple-600" />
+                      <span className="text-sm font-medium">Readability</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Readability analysis will appear here
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
-
-        {/* Editor Area */}
-        <div className="flex-1 p-4 overflow-hidden">
-          {documentError ? (
-            <Card className="h-full flex items-center justify-center">
-              <CardContent className="text-center space-y-4">
-                <AlertTriangle size={48} className="mx-auto text-destructive" />
-                <div>
-                  <h3 className="font-semibold text-destructive">Error Loading Document</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {documentError.message || 'Failed to load the selected document'}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : !selectedDocument && !documentLoading ? (
-            <Card className="h-full flex items-center justify-center">
-              <CardContent className="text-center space-y-4">
-                <FileText size={48} className="mx-auto text-muted-foreground" />
-                <div>
-                  <h3 className="font-semibold">No Document Selected</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {documents.length === 0
-                      ? 'Create your first document to get started'
-                      : 'Select a document from the sidebar to begin editing'
-                    }
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : documentLoading ? (
-            <Card className="h-full flex items-center justify-center">
-              <CardContent className="text-center space-y-4">
-                <FileText size={48} className="mx-auto text-muted-foreground animate-pulse" />
-                <div className="space-y-2">
-                  <div className="h-4 bg-muted rounded w-32 mx-auto animate-pulse"></div>
-                  <div className="h-3 bg-muted rounded w-24 mx-auto animate-pulse"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : selectedDocument ? (
-            <DocumentEditor
-              document={selectedDocument}
-              onSaved={() => {
-                console.log('📝 WorkspaceLayout: Document saved');
-              }}
-              onError={(error) => {
-                console.error('❌ WorkspaceLayout: Document error:', error);
-              }}
-            />
-          ) : null}
-        </div>
       </div>
     </div>
   );
