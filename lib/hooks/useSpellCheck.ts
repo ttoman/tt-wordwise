@@ -47,29 +47,37 @@ export function useSpellCheck(): UseSpellCheckReturn {
   // Initialize spell checker on mount
   useEffect(() => {
     const initialize = async () => {
-      if (isInitialized || isInitializing) {
-        console.log('🔄 useSpellCheck: Already initialized or initializing');
+      // Redundant check, but good for safety
+      if (isSpellCheckerReady()) {
+        console.log('✅ useSpellCheck: Spell checker is already ready.');
+        setIsInitialized(true);
         return;
       }
 
-      console.log('🔄 useSpellCheck: Starting initialization');
+      console.log('🔄 useSpellCheck: Starting initialization...');
       setIsInitializing(true);
       setInitError(null);
 
       try {
-        await initializeSpellChecker();
-        console.log('✅ useSpellCheck: Spell checker initialized successfully');
-        setIsInitialized(true);
+        const success = await initializeSpellChecker();
+        if (success) {
+          console.log('✅ useSpellCheck: Spell checker initialized successfully');
+          setIsInitialized(true);
+        } else {
+          throw new Error('Initialization function returned false.');
+        }
       } catch (error) {
         console.error('❌ useSpellCheck: Failed to initialize spell checker:', error);
-        setInitError(error instanceof Error ? error.message : 'Failed to initialize spell checker');
+        setInitError(error instanceof Error ? error.message : 'An unknown error occurred during initialization');
       } finally {
         setIsInitializing(false);
+        console.log('🔄 useSpellCheck: Initialization process finished.');
       }
     };
 
     initialize();
-  }, [isInitialized, isInitializing]);
+    // Intentionally empty dependency array to run only once on mount
+  }, []);
 
   // Check text for spelling errors
   const checkText = useCallback(async (text: string) => {

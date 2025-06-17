@@ -22,12 +22,22 @@ export interface DocumentEditorProps {
   document: Document;
   onSaved?: () => void;
   onError?: (error: string) => void;
+  onContentChange?: (content: string) => void;
+  contentEditableRef?: React.RefObject<HTMLDivElement>;
+  showInlineFeedback?: boolean;
 }
 
 /**
  * Document editor with autosave functionality
  */
-export function DocumentEditor({ document, onSaved, onError }: DocumentEditorProps) {
+export function DocumentEditor({
+  document,
+  onSaved,
+  onError,
+  onContentChange,
+  contentEditableRef: externalRef,
+  showInlineFeedback = true
+}: DocumentEditorProps) {
   console.log('🔄 DocumentEditor: Rendering for document', document.id);
 
   const [title, setTitle] = useState(document.title);
@@ -36,7 +46,8 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
   const [contentChangeCount, setContentChangeCount] = useState(0);
 
   const updateMutation = useUpdateDocument();
-  const contentEditableRef = useRef<HTMLDivElement>(null);
+  const internalRef = useRef<HTMLDivElement>(null);
+  const contentEditableRef = externalRef || internalRef;
   const lastContentRef = useRef(document.content || '');
   const lastTitleRef = useRef(document.title);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -102,6 +113,14 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
     }
   }, [document.id, document.title, document.content]);
 
+  // Initialize contentEditable with document content
+  useEffect(() => {
+    if (contentEditableRef.current && content) {
+      console.log('🔄 DocumentEditor: Setting contentEditable content:', content.length, 'chars');
+      contentEditableRef.current.textContent = content;
+    }
+  }, [content]);
+
   // Debounced title change handler
   const handleTitleChange = useCallback((newTitle: string) => {
     if (newTitle === lastTitleRef.current) return;
@@ -144,13 +163,18 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
 
     // Schedule grammar check on content change
     scheduleGrammarCheck();
-  }, [autosave, scheduleGrammarCheck]);
+
+    // Propagate content change if callback is provided
+    if (onContentChange) {
+      onContentChange(newContent);
+    }
+  }, [autosave, scheduleGrammarCheck, onContentChange]);
 
   // Spell check on spacebar press
   useSpellCheckOnSpace(
-    (text: string) => {
+    async (text: string) => {
       console.log('🔍 DocumentEditor: Triggering spell check on spacebar');
-      spellCheck.checkText(text);
+      await spellCheck.checkText(text);
     },
     () => contentEditableRef.current?.textContent || ''
   );

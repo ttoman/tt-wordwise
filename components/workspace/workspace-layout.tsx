@@ -2,11 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { DocumentSidebar } from './document-sidebar';
-import { DocumentEditor } from '@/components/document-editor';
-import { FeedbackPanel } from '@/components/feedback-panel';
+import { DocumentEditorWithFeedback } from '@/components/document-editor-with-feedback';
 import { useDocuments, useDocument } from '@/lib/hooks/useDocuments';
-import { useSpellCheck, useSpellCheckOnSpace } from '@/lib/hooks/useSpellCheck';
-import { useGrammarCheck, useGrammarCheckOnIdle } from '@/lib/hooks/useGrammarCheck';
 import { Document } from '@/lib/documentService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,7 +21,6 @@ export function WorkspaceLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
-  const [documentContent, setDocumentContent] = useState<string>('');
 
   // Document state
   const { data: documents, isLoading: documentsLoading, error: documentsError } = useDocuments();
@@ -42,106 +38,6 @@ export function WorkspaceLayout() {
   useEffect(() => {
     console.log('📊 WorkspaceLayout: State snapshot', documentState);
   }, [documentState]);
-
-  // Feedback state - manage at workspace level
-  const spellCheck = useSpellCheck();
-  const grammarCheck = useGrammarCheck();
-
-  // Refs for feedback integration
-  const contentEditableRef = useRef<HTMLDivElement>(null);
-
-  // Get cursor position helper
-  const getCursorPosition = useCallback(() => {
-    if (!contentEditableRef.current) return 0;
-
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return 0;
-
-    const range = selection.getRangeAt(0);
-    const preCaretRange = range.cloneRange();
-    preCaretRange.selectNodeContents(contentEditableRef.current);
-    preCaretRange.setEnd(range.endContainer, range.endOffset);
-
-    return preCaretRange.toString().length;
-  }, []);
-
-  // Grammar check on idle (2 second debounce)
-  const scheduleGrammarCheck = useGrammarCheckOnIdle(
-    grammarCheck.checkGrammar,
-    () => documentContent,
-    getCursorPosition
-  );
-
-  // Spell check on spacebar press
-  useSpellCheckOnSpace(
-    (text: string) => {
-      console.log('🔍 WorkspaceLayout: Triggering spell check on spacebar');
-      spellCheck.checkText(text);
-    },
-    () => documentContent
-  );
-
-  // Handle document content changes - debounced to reduce state updates
-  const handleDocumentContentChange = useCallback((content: string) => {
-    // Only log and update if content actually changed
-    if (content !== documentContent) {
-      console.log('📝 WorkspaceLayout: Document content changed, length:', content.length);
-      setDocumentContent(content);
-
-      // Schedule grammar check
-      scheduleGrammarCheck();
-    }
-  }, [documentContent, scheduleGrammarCheck]);
-
-  // Handle spell check error interactions
-  const handleSpellErrorClick = useCallback((error: any) => {
-    console.log('🔍 WorkspaceLayout: Spell error clicked:', error.word);
-    // Focus editor and potentially highlight the word
-    if (contentEditableRef.current) {
-      contentEditableRef.current.focus();
-    }
-  }, []);
-
-  const handleSpellErrorIgnore = useCallback((error: any) => {
-    console.log('🚫 WorkspaceLayout: Ignoring spell error:', error.word);
-    // Could implement ignore functionality here
-  }, []);
-
-  // Handle grammar suggestion interactions
-  const handleGrammarSuggestionApply = useCallback((index: number, suggestion: string) => {
-    console.log('✅ WorkspaceLayout: Applying grammar suggestion:', suggestion);
-
-    const grammarSuggestionData = grammarCheck.suggestions[index];
-    if (!grammarSuggestionData) return;
-
-    // Replace the original text with the suggestion
-    const newContent = documentContent.replace(grammarSuggestionData.original, suggestion);
-    setDocumentContent(newContent);
-    handleDocumentContentChange(newContent);
-
-    // Apply the suggestion (removes it from the list)
-    grammarCheck.applySuggestion(index, suggestion);
-  }, [grammarCheck, documentContent, handleDocumentContentChange]);
-
-  const handleGrammarSuggestionDismiss = useCallback((index: number) => {
-    console.log('🚫 WorkspaceLayout: Dismissing grammar suggestion', index);
-    grammarCheck.dismissSuggestion(index);
-  }, [grammarCheck]);
-
-  const handleGrammarRecheck = useCallback(() => {
-    console.log('🔄 WorkspaceLayout: Manual grammar recheck triggered');
-    if (documentContent.trim().length > 0) {
-      grammarCheck.checkGrammar(documentContent, getCursorPosition());
-    }
-  }, [grammarCheck, documentContent, getCursorPosition]);
-
-  // Update content when document changes
-  useEffect(() => {
-    if (selectedDocument) {
-      console.log('🔄 WorkspaceLayout: Selected document changed, updating content');
-      setDocumentContent(selectedDocument.content || '');
-    }
-  }, [selectedDocument]);
 
   // Handle responsive behavior
   useEffect(() => {
@@ -318,7 +214,7 @@ export function WorkspaceLayout() {
                 </CardContent>
               </Card>
             ) : selectedDocument ? (
-              <DocumentEditor
+              <DocumentEditorWithFeedback
                 document={selectedDocument}
                 onSaved={() => {
                   console.log('📝 WorkspaceLayout: Document saved');
@@ -330,38 +226,6 @@ export function WorkspaceLayout() {
             ) : null}
           </div>
         </div>
-
-        {/* Feedback Panel - Only show when document is selected and not on mobile */}
-        {selectedDocument && !documentLoading && !documentError && !isMobile && (
-          <FeedbackPanel
-            // Spell check data
-            spellErrors={spellCheck.errors}
-            isSpellCheckInitialized={spellCheck.isInitialized}
-            isSpellCheckInitializing={spellCheck.isInitializing}
-            spellCheckInitError={spellCheck.initError}
-            onSpellErrorClick={handleSpellErrorClick}
-            onSpellErrorIgnore={handleSpellErrorIgnore}
-
-            // Grammar check data
-            grammarSuggestions={grammarCheck.suggestions}
-            isGrammarChecking={grammarCheck.isChecking}
-            grammarError={grammarCheck.error}
-            grammarScore={grammarCheck.score}
-            grammarImprovedScore={grammarCheck.improvedScore}
-            grammarReadabilityGrade={grammarCheck.readabilityGrade}
-            grammarCostInfo={grammarCheck.costInfo || {
-              totalCost: 0,
-              remainingBudget: 0,
-              resetTime: 0
-            }}
-            onGrammarSuggestionApply={handleGrammarSuggestionApply}
-            onGrammarSuggestionDismiss={handleGrammarSuggestionDismiss}
-            onGrammarRecheck={handleGrammarRecheck}
-
-            // Document content for readability
-            content={documentContent}
-          />
-        )}
       </div>
     </div>
   );
