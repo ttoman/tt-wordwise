@@ -155,13 +155,37 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
       </CardHeader>
 
       <CardContent className="flex-1 p-6">
-        {/* Content Editor */}
-        <textarea
-          value={content}
-          onChange={(e) => handleContentChange(e.target.value)}
-          placeholder="Start writing..."
-          className="w-full h-full resize-none border-none outline-none bg-transparent text-sm leading-relaxed"
-          style={{ minHeight: '400px' }}
+        {/* Content Editor - Contenteditable for distraction-free experience */}
+        <div
+          contentEditable
+          suppressContentEditableWarning={true}
+          onInput={(e) => {
+            const newContent = e.currentTarget.textContent || '';
+            console.log('📝 DocumentEditor: Contenteditable input, length:', newContent.length);
+            handleContentChange(newContent);
+          }}
+          onBlur={(e) => {
+            // Ensure content is synced on blur
+            const newContent = e.currentTarget.textContent || '';
+            if (newContent !== content) {
+              console.log('📝 DocumentEditor: Content sync on blur');
+              handleContentChange(newContent);
+            }
+          }}
+          className="w-full h-full outline-none bg-transparent text-sm leading-relaxed focus:outline-none"
+          style={{
+            minHeight: '400px',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word'
+          }}
+          data-placeholder="Start writing..."
+          ref={(el) => {
+            // Sync content when component updates
+            if (el && el.textContent !== content) {
+              console.log('📝 DocumentEditor: Syncing contenteditable with state');
+              el.textContent = content;
+            }
+          }}
         />
       </CardContent>
 

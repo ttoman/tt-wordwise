@@ -66,3 +66,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Contenteditable placeholder styling */
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  position: absolute;
+}

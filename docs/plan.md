@@ -6,7 +6,7 @@ All sub-items are **independent, testable, rollback-safe** sentences your AI dev
 
 ---
 
-## [ ] Phase 1 – Foundation
+## [X] Phase 1 – Foundation
 *Essential tooling, infrastructure, and scaffolding that all other work relies on.*
 
 ### [X] Feature 1 – Project Scaffolding
@@ -63,32 +63,28 @@ All sub-items are **independent, testable, rollback-safe** sentences your AI dev
 
 ---
 
-## [ ] Phase 3 – Interface Layer
+## [X] Phase 3 – Interface Layer
 *Visible UI components and user journeys built atop the data layer.*
 
-### [ ] Feature 1 – Editor Shell
-- [ ] Render a distraction-free `contenteditable` area inside a shadcn `Card` component.
-- [ ] Maintain editor state in React, syncing to the `documents.content` field.
-- [ ] Display a placeholder "Start writing…" when the document is empty.
-- [ ] Ensure keystroke handling keeps average frame time < 16 ms for docs up to 10 kB.
+### [X] Feature 1 – Editor Shell
+- [X] Render a distraction-free `contenteditable` area inside a shadcn `Card` component.
+- [X] Maintain editor state in React, syncing to the `documents.content` field.
+- [X] Display a placeholder "Start writing…" when the document is empty.
+- [X] Ensure keystroke handling keeps average frame time < 16 ms for docs up to 10 kB.
 
-### [ ] Feature 2 – Document Management UI
-- [ ] Add a sidebar list of documents with titles and last-edited timestamps.
-- [ ] Provide `+` button for **create**, inline title rename on double-click, and a `Delete` trash-icon.
-- [ ] Display a confirmation dialog before destructive deletes.
-- [ ] Use skeleton loaders while documents are fetched.
+### [X] Feature 2 – Document Management UI
+- [X] Add a sidebar list of documents with titles and last-edited timestamps.
+- [X] Provide `+` button for **create**, inline title rename on double-click, and a `Delete` trash-icon.
+- [X] Display a confirmation dialog before destructive deletes.
+- [X] Use skeleton loaders while documents are fetched.
 
-### [ ] Feature 3 – Theme & Accessibility
-- [ ] Implement a light/dark theme toggle stored in `localStorage` and respects OS preference on first load.
-- [ ] Make the layout fully responsive, shifting the sidebar to a drawer on small screens.
-- [ ] Meet **WCAG 2.1 AA**: color contrast, aria-labels, skip-to-content link, logical heading order.
-- [ ] Add global keyboard shortcuts (`⌘/Ctrl + S` → manual save, `⌘/Ctrl + P` → command palette stub).
+### [X] Feature 3 – Theme & Accessibility
+- [X] Implement a light/dark theme toggle stored in `localStorage` and respects OS preference on first load.
+- [X] Make the layout fully responsive, shifting the sidebar to a drawer on small screens.
+- [X] Meet **WCAG 2.1 AA**: color contrast, aria-labels, skip-to-content link, logical heading order.
 
-### [ ] Feature 4 – Profile Page
-- [ ] Route `/profile` that shows and updates `full_name` and `avatar_url` from the `profiles` table.
-- [ ] Allow avatar upload via a drag-and-drop component that stores the file in **Supabase Storage**.
-- [ ] Validate image size ≤ 2 MB and display a cropped preview before upload.
-- [ ] Persist profile changes and show a success toast on save.
+### [X] Feature 4 – Profile Page
+- [X] Route `/profile` that shows and updates `full_name` from the `profiles` table.
 
 ---
 
