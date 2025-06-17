@@ -43,11 +43,11 @@ All sub-items are **independent, testable, rollback-safe** sentences your AI dev
 - [X] Add helpful indexes on `documents.user_id` and `documents.updated_at` for fast queries.
 - [X] Set up Drizzle ORM schema with full TypeScript type safety (replaces manual type generation).
 
-### [ ] Feature 2 – Row-Level Security Policies
-- [ ] Enable RLS on `documents` and `profiles`.
-- [ ] Add policy: logged-in user can `select | insert | update | delete` rows where `auth.uid() = user_id`.
-- [ ] Create a negative test that proves cross-account access is rejected with HTTP 401.
-- [ ] Document the RLS rules in `docs/security.md`.
+### [X] Feature 2 – Row-Level Security Policies
+- [X] Enable RLS on `documents` and `profiles`.
+- [X] Add policy: logged-in user can `select | insert | update | delete` rows where `auth.uid() = user_id`.
+- [X] Create a negative test that proves cross-account access is rejected with HTTP 401.
+- [X] Document the RLS rules in `docs/security.md`.
 
 ### [ ] Feature 3 – Document Service
 - [ ] Implement CRUD helpers (`createDoc`, `renameDoc`, `deleteDoc`, `saveDoc`) in `lib/documentService.ts`.
