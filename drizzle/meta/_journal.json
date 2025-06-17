@@ -1,20 +1,5 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1750162941247,
-      "tag": "0000_lame_hydra",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1750163500000,
-      "tag": "0001_enable_rls",
-      "breakpoints": true
-    }
-  ]
+  "entries": []
 }

@@ -20,13 +20,12 @@ export const profiles = pgTable('profiles', {
 console.log('✅ Profiles table schema defined');
 
 // Documents table for user-created content
+// References auth.users directly for simplicity and reliability
 export const documents = pgTable(
   'documents',
   {
     id: uuid('id').defaultRandom().primaryKey(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => profiles.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').notNull(),
     title: text('title').notNull().default('Untitled Document'),
     content: text('content'),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
