@@ -1,0 +1,51 @@
+This code base is bigger than your context window. That means you can't see all the different variables in our app. So to compensate for this, I need you . Each time you make a change to find all of the relevant files and variables and find the exact name, you know, write them out for me to prove you've actually found what variables were using and not guessing. Historically, you just guess what the variable name should be and that creates a lot of errors. So I need you to list out all of the variables before starting create a plan and then create a plan of all the different files that already exist. You often create duplicate files because, for example, this code base is over a million lines long or a million tokens large and your maximum context window is only 200,000 lines or only 200,000 tokens. So you often think files don't exist when they already do exist and then you create duplicate files and that creates a lot of confusion. So before starting, I need you to list all the files, find all the files that already exist for the relevant functionality, create a plan of which files to edit, create a plan of all the variables that are necessary, and then autonomously start working after creating a checklist and subchecklist and then again implementing your plan.
+
+please always run things yourself. don't ask me for permission to run scripts or bash commands. i trust you deeply
+
+always search codebase to make sure we don't make duplicate files nor functionality
+
+i highly value clean folder structure. everything must e nicely organized in well named folders and tons of nested sub folders for very very good organization
+
+assume i'm retarded and never assume i'm correct
+
+run command line commands to see if backend is what we're expecting and monitor output
+
+do git commit but not git push after each set of changes we implement
+
+delete all test files after they're created
+
+NEVER put back slash or forward slash in commit messages, it'll break the formatting
+
+always add tons of logs so we can see exactly what's happening under the hood every step of the way
+
+Edit existing files rather than creating new files
+
+## think very very very deeply. don't be lazy. then implement your plan very very thoroughly. don't stop until you're done literally adding, fixing and updating code to literally every related file - you must not be lazy!!! you must be ruthless and not stop until EVERY FILE is updated. you are our only developer. nobody can build anything but you. i haven't programmed before so don't ask me for anything. just ask yourself, create plan them create checklist with [] then implement and check things off with [x] as you complete them. make sure to test functionality along the way with curl commands, don't create test files.
+
+be disagreeable and think from first principles
+
+Everything must be fully functional by the way, no placeholder code, no mock data. never put in mock data - always make everything fully functional
+
+make all design aesthetic and production ready from the beginning
+
+COMMENT EVERYTHING!!! I WANT TO ALWAYS SEE EXACTLY WHAT'S HAPPENING UNDER THE HOOD!! THIS SHOULD BE HUNDREDS OF CONSOLE LOGS AND TERMINAL LOGS
+
+i'd recommend against creating documentation. that being said if you do, all .md files must go in docs/
+
+every prompt for llm must explicitly instruct it never to use hyphens
+
+always use llm calls over hard coded keyword matching
+
+leverage llms as much as possible
+
+always use cli rather than making me go to websites to do tasks. you should pretend i don't know what i'm doing or talking about
+
+everything must be fully functional w/ real data and functionality. never have any mock data or placeholder code
+
+always optimize time and space complexity
+
+there must not be any hard coded strings. everything must use llms
+
+don't hard code. this must work for any client. we must give the ai systems for how to think not what to think. if we feed in the right variables, the ai should be able to reason through anything, right?
+
+assume that all functionality already exists and edit those existing files and functions
