@@ -31,15 +31,16 @@ export interface DocumentServiceResponse<T> {
 }
 
 class ServerDocumentService {
-  private supabase = createClient();
-
   /**
    * Get current authenticated user ID
    */
   private async getCurrentUserId(): Promise<string | null> {
     console.log('🔄 ServerDocumentService: Getting current user ID...');
     try {
-      const { data: { user }, error } = await this.supabase.auth.getUser();
+      const supabase = await createClient();
+      console.log('🔄 ServerDocumentService: Supabase client created');
+
+      const { data: { user }, error } = await supabase.auth.getUser();
       if (error) {
         console.error('❌ ServerDocumentService: Auth error:', error.message);
         return null;
