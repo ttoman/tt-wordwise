@@ -5,7 +5,7 @@ console.log('🔄 GrammarCheck API: Route loaded');
 
 // Initialize OpenAI client
 const openai = new OpenAI({
-  apiKey: process.env.OPEN_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 // Rate limiting and cost tracking

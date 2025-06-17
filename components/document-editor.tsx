@@ -95,6 +95,21 @@ export function DocumentEditor({
     },
   });
 
+  // Effect to schedule autosave when title or content changes
+  useEffect(() => {
+    // Prevent saving initial content on mount
+    if (content === lastContentRef.current && title === lastTitleRef.current) {
+      return;
+    }
+
+    console.log('📝 DocumentEditor: Change detected, scheduling autosave');
+    autosave.scheduleAutosave({ title, content });
+
+    // Update refs to current state
+    lastContentRef.current = content;
+    lastTitleRef.current = title;
+  }, [title, content, autosave]);
+
   // Update local state when document prop changes
   useEffect(() => {
     console.log('🔄 DocumentEditor: Document prop changed, updating local state');
@@ -113,33 +128,20 @@ export function DocumentEditor({
     }
   }, [document.id, document.title, document.content]);
 
-  // Initialize contentEditable with document content
+  // Sync contentEditable with content state, but only if they differ.
+  // This prevents the cursor from jumping to the start on every keystroke.
   useEffect(() => {
-    if (contentEditableRef.current && content) {
-      console.log('🔄 DocumentEditor: Setting contentEditable content:', content.length, 'chars');
+    if (contentEditableRef.current && contentEditableRef.current.textContent !== content) {
+      console.log('🔄 DocumentEditor: Syncing contentEditable with state from external change.');
       contentEditableRef.current.textContent = content;
     }
   }, [content]);
 
   // Debounced title change handler
   const handleTitleChange = useCallback((newTitle: string) => {
-    if (newTitle === lastTitleRef.current) return;
-
     console.log('📝 DocumentEditor: Title changed to:', newTitle);
     setTitle(newTitle);
-    lastTitleRef.current = newTitle;
-
-    // Clear any existing debounce timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    // Schedule autosave for title change with a short debounce
-    debounceTimerRef.current = setTimeout(() => {
-      autosave.scheduleAutosave({ title: newTitle });
-      debounceTimerRef.current = null;
-    }, 500);
-  }, [autosave]);
+  }, []);
 
   // Debounced content change handler
   const handleContentChange = useCallback((newContent: string) => {
@@ -147,28 +149,13 @@ export function DocumentEditor({
 
     console.log('📝 DocumentEditor: Content changed, length:', newContent.length);
     setContent(newContent);
-    lastContentRef.current = newContent;
     setContentChangeCount(prev => prev + 1);
-
-    // Clear any existing debounce timer
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    // Schedule autosave for content change with a short debounce
-    debounceTimerRef.current = setTimeout(() => {
-      autosave.scheduleAutosave({ content: newContent });
-      debounceTimerRef.current = null;
-    }, 500);
-
-    // Schedule grammar check on content change
-    scheduleGrammarCheck();
 
     // Propagate content change if callback is provided
     if (onContentChange) {
       onContentChange(newContent);
     }
-  }, [autosave, scheduleGrammarCheck, onContentChange]);
+  }, [onContentChange]);
 
   // Spell check on spacebar press
   useSpellCheckOnSpace(
