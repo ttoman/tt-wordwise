@@ -11,6 +11,10 @@ import { useUpdateDocument } from '@/lib/hooks/useDocuments';
 import { Document } from '@/lib/documentService';
 import { useSpellCheck, useSpellCheckOnSpace } from '@/lib/hooks/useSpellCheck';
 import { SpellCheckMenu, useSpellCheckMenu } from '@/components/spell-check-menu';
+import { useGrammarCheck, useGrammarCheckOnIdle } from '@/lib/hooks/useGrammarCheck';
+import { GrammarSuggestions, GrammarSummary } from '@/components/grammar-suggestions';
+import { ReadabilityScore } from '@/components/readability-score';
+import { CostWarningBanner, CostIndicator } from '@/components/cost-warning-banner';
 
 console.log('🔄 DocumentEditor component loaded');
 
@@ -36,6 +40,31 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
   // Spell check functionality
   const spellCheck = useSpellCheck();
   const spellCheckMenu = useSpellCheckMenu();
+
+  // Grammar check functionality
+  const grammarCheck = useGrammarCheck();
+
+  // Get cursor position helper
+  const getCursorPosition = useCallback(() => {
+    if (!contentEditableRef.current) return 0;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return 0;
+
+    const range = selection.getRangeAt(0);
+    const preCaretRange = range.cloneRange();
+    preCaretRange.selectNodeContents(contentEditableRef.current);
+    preCaretRange.setEnd(range.endContainer, range.endOffset);
+
+    return preCaretRange.toString().length;
+  }, []);
+
+  // Grammar check on idle (2 second debounce)
+  const scheduleGrammarCheck = useGrammarCheckOnIdle(
+    grammarCheck.checkGrammar,
+    () => contentEditableRef.current?.textContent || '',
+    getCursorPosition
+  );
 
   // Autosave hook
   const autosave = useAutosave({
@@ -74,7 +103,10 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
 
     // Schedule autosave for content change
     autosave.scheduleAutosave({ content: newContent });
-  }, [autosave]);
+
+    // Schedule grammar check on content change
+    scheduleGrammarCheck();
+  }, [autosave, scheduleGrammarCheck]);
 
   // Spell check on spacebar press
   useSpellCheckOnSpace(
@@ -104,6 +136,34 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
 
     spellCheckMenu.hideMenu();
   }, [handleContentChange, spellCheckMenu]);
+
+  // Handle grammar suggestion application
+  const handleGrammarSuggestionApply = useCallback((index: number, suggestion: string) => {
+    console.log('✅ DocumentEditor: Applying grammar suggestion:', suggestion);
+
+    if (!contentEditableRef.current) return;
+
+    const currentContent = contentEditableRef.current.textContent || '';
+    const grammarSuggestionData = grammarCheck.suggestions[index];
+
+    if (!grammarSuggestionData) return;
+
+    // Replace the original text with the suggestion
+    const newContent = currentContent.replace(grammarSuggestionData.original, suggestion);
+
+    // Update the content
+    contentEditableRef.current.textContent = newContent;
+    handleContentChange(newContent);
+
+    // Apply the suggestion (removes it from the list)
+    grammarCheck.applySuggestion(index, suggestion);
+  }, [grammarCheck, handleContentChange]);
+
+  // Handle grammar suggestion dismiss
+  const handleGrammarSuggestionDismiss = useCallback((index: number) => {
+    console.log('🚫 DocumentEditor: Dismissing grammar suggestion', index);
+    grammarCheck.dismissSuggestion(index);
+  }, [grammarCheck]);
 
   // Handle right-click on misspelled words
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
@@ -208,7 +268,12 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
         </div>
       </CardHeader>
 
-            <CardContent className="flex-1 p-6 relative">
+      {/* Cost Warning Banner */}
+      <div className="px-6">
+        <CostWarningBanner costInfo={grammarCheck.costInfo} />
+      </div>
+
+      <CardContent className="flex-1 p-6 relative">
         {/* Content Editor - Contenteditable for distraction-free experience */}
         <div
           ref={contentEditableRef}
@@ -236,6 +301,18 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
           }}
           data-placeholder="Start writing..."
         />
+
+        {/* Grammar Suggestions */}
+        {(grammarCheck.suggestions.length > 0 || grammarCheck.isChecking) && (
+          <div className="absolute top-4 right-4 w-80 max-h-96 overflow-y-auto z-10">
+            <GrammarSuggestions
+              suggestions={grammarCheck.suggestions}
+              isChecking={grammarCheck.isChecking}
+              onApply={handleGrammarSuggestionApply}
+              onDismiss={handleGrammarSuggestionDismiss}
+            />
+          </div>
+        )}
 
         {/* Spell Check Menu */}
         <SpellCheckMenu
@@ -268,9 +345,29 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
               No spelling errors
             </span>
           )}
+
+          {/* Grammar Summary */}
+          <GrammarSummary
+            score={grammarCheck.score}
+            improvedScore={grammarCheck.improvedScore}
+            suggestionsCount={grammarCheck.suggestions.length}
+            isChecking={grammarCheck.isChecking}
+            error={grammarCheck.error}
+            costInfo={grammarCheck.costInfo}
+          />
+
+          {/* Readability Score */}
+          <ReadabilityScore
+            content={content}
+            gptGrade={grammarCheck.readabilityGrade}
+            className="hidden md:flex"
+          />
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Cost Indicator */}
+          <CostIndicator costInfo={grammarCheck.costInfo} />
+
           {spellCheck.isInitializing && (
             <span className="text-blue-500 dark:text-blue-400">Loading spell check...</span>
           )}

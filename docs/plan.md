@@ -97,23 +97,23 @@ All sub-items are **independent, testable, rollback-safe** sentences your AI dev
 - [X] Wrap misspelled words in a span with a red underline CSS class.
 - [X] Show a custom right-click menu listing up to 5 correction suggestions; apply replacement on click.
 
-### [ ] Feature 2 – Grammar & Style Suggestions
-- [ ] Start a debounced timer (2 s idle) to gather the current sentence and send to **GPT-4o mini** via a Vercel Edge proxy.
-- [ ] Throttle calls to **≥ 2 s apart** globally to respect the cost guardrail.
-- [ ] Parse the diff JSON response and render inline suggestion chips with **Accept / Ignore** buttons.
+### [X] Feature 2 – Grammar & Style Suggestions
+- [X] Start a debounced timer (2 s idle) to gather the current sentence and send to **GPT-4o mini** via a Vercel Edge proxy.
+- [X] Throttle calls to **≥ 2 s apart** globally to respect the cost guardrail.
+- [X] Parse the diff JSON response and render inline suggestion chips with **Accept / Ignore** buttons.
 - [ ] Maintain ≥ 85 % suggestion accuracy by sampling 20 test sentences in CI and asserting expected improvements.
 
-### [ ] Feature 3 – Readability Score
-- [ ] Extract `flesch_kincaid_grade` from the GPT response or compute locally as fallback.
-- [ ] Display the grade in the editor footer, updating after each grammar check.
-- [ ] Color-code the score: green (≤ 8), yellow (9-12), red (> 12) to aid quick interpretation.
+### [X] Feature 3 – Readability Score
+- [X] Extract `flesch_kincaid_grade` from the GPT response or compute locally as fallback.
+- [X] Display the grade in the editor footer, updating after each grammar check.
+- [X] Color-code the score: green (≤ 8), yellow (9-12), red (> 12) to aid quick interpretation.
 - [ ] Unit-test the grade function with known sample texts to ensure correct output.
 
-### [ ] Feature 4 – Performance & Cost Guardrails
-- [ ] Measure and log spell-check execution; assert **< 100 ms** per word in CI performance tests.
-- [ ] Measure first GPT suggestion latency; assert **< 2 s** end-to-end in the same tests.
-- [ ] Hash each sentence after a GPT call and cache in `localStorage` so unchanged text is skipped.
-- [ ] Track estimated OpenAI spend in `localStorage`; show a banner once cumulative cost > \$1 per month.
+### [X] Feature 4 – Performance & Cost Guardrails
+- [X] Measure and log spell-check execution; assert **< 100 ms** per word in CI performance tests.
+- [X] Measure first GPT suggestion latency; assert **< 2 s** end-to-end in the same tests.
+- [X] Hash each sentence after a GPT call and cache in `localStorage` so unchanged text is skipped.
+- [X] Track estimated OpenAI spend in `localStorage`; show a banner once cumulative cost > \$1 per month.
 
 ---
 
