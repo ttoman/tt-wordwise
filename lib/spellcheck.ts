@@ -1,74 +1,23 @@
-import nspell from 'nspell';
-
 console.log('🔄 SpellCheck: Module loaded');
 
-// Global spell checker instance
-let spellChecker: nspell.Nspell | null = null;
-let isLoading = false;
-let loadPromise: Promise<nspell.Nspell> | null = null;
+// Cache for spell check results to avoid repeated API calls
+const spellCheckCache = new Map<string, { isCorrect: boolean; suggestions: string[] }>();
+const CACHE_MAX_SIZE = 1000;
 
 /**
- * Load and initialize the spell checker with English dictionary
- * This is an async operation that should be called early in the app lifecycle
+ * Initialize the spell checker - just a no-op for API version
  */
-export async function initializeSpellChecker(): Promise<nspell.Nspell> {
-  console.log('🔄 SpellCheck: Initializing spell checker');
-
-  // Return existing instance if already loaded
-  if (spellChecker) {
-    console.log('✅ SpellCheck: Already initialized, returning existing instance');
-    return spellChecker;
-  }
-
-  // Return existing promise if currently loading
-  if (isLoading && loadPromise) {
-    console.log('🔄 SpellCheck: Already loading, waiting for existing promise');
-    return loadPromise;
-  }
-
-  isLoading = true;
-
-  // Create load promise
-  loadPromise = (async () => {
-    try {
-      console.log('📦 SpellCheck: Loading dictionary files');
-
-      // Dynamic imports to load dictionary files
-      const [dictionaryEn] = await Promise.all([
-        import('dictionary-en')
-      ]);
-
-      console.log('📖 SpellCheck: Dictionary loaded, creating spell checker');
-
-      // Initialize spell checker with dictionary
-      const checker = nspell(dictionaryEn.default);
-
-      console.log('✅ SpellCheck: Spell checker initialized successfully');
-      spellChecker = checker;
-
-      return checker;
-    } catch (error) {
-      console.error('❌ SpellCheck: Failed to initialize spell checker:', error);
-      throw error;
-    } finally {
-      isLoading = false;
-    }
-  })();
-
-  return loadPromise;
+export async function initializeSpellChecker(): Promise<boolean> {
+  console.log('🔄 SpellCheck: Using API-based spell checking');
+  return true;
 }
 
 /**
- * Check if a word is spelled correctly
+ * Check if a word is spelled correctly using the API
  * @param word - The word to check
  * @returns true if the word is spelled correctly, false otherwise
  */
-export function isWordCorrect(word: string): boolean {
-  if (!spellChecker) {
-    console.warn('⚠️ SpellCheck: Spell checker not initialized, assuming word is correct');
-    return true;
-  }
-
+export async function isWordCorrect(word: string): Promise<boolean> {
   if (!word || word.trim().length === 0) {
     return true;
   }
@@ -80,24 +29,33 @@ export function isWordCorrect(word: string): boolean {
     return true;
   }
 
-  const isCorrect = spellChecker.correct(cleanWord);
-  console.log(`📝 SpellCheck: Word "${cleanWord}" is ${isCorrect ? 'correct' : 'incorrect'}`);
+  // Check cache first
+  if (spellCheckCache.has(cleanWord.toLowerCase())) {
+    const cached = spellCheckCache.get(cleanWord.toLowerCase())!;
+    console.log(`📝 SpellCheck: Word "${cleanWord}" found in cache: ${cached.isCorrect ? 'correct' : 'incorrect'}`);
+    return cached.isCorrect;
+  }
 
-  return isCorrect;
+  try {
+    const results = await checkWords([cleanWord]);
+    const result = results[0];
+
+    console.log(`📝 SpellCheck: Word "${cleanWord}" is ${result.isCorrect ? 'correct' : 'incorrect'}`);
+    return result.isCorrect;
+  } catch (error) {
+    console.error('❌ SpellCheck: Error checking word:', error);
+    // Return true on error to avoid marking all words as incorrect
+    return true;
+  }
 }
 
 /**
- * Get spelling suggestions for a misspelled word
+ * Get spelling suggestions for a misspelled word using the API
  * @param word - The misspelled word
  * @param maxSuggestions - Maximum number of suggestions to return (default: 5)
  * @returns Array of spelling suggestions
  */
-export function getSpellingSuggestions(word: string, maxSuggestions: number = 5): string[] {
-  if (!spellChecker) {
-    console.warn('⚠️ SpellCheck: Spell checker not initialized, returning empty suggestions');
-    return [];
-  }
-
+export async function getSpellingSuggestions(word: string, maxSuggestions: number = 5): Promise<string[]> {
   if (!word || word.trim().length === 0) {
     return [];
   }
@@ -109,10 +67,86 @@ export function getSpellingSuggestions(word: string, maxSuggestions: number = 5)
     return [];
   }
 
-  const suggestions = spellChecker.suggest(cleanWord).slice(0, maxSuggestions);
-  console.log(`💡 SpellCheck: Generated ${suggestions.length} suggestions for "${cleanWord}":`, suggestions);
+  // Check cache first
+  if (spellCheckCache.has(cleanWord.toLowerCase())) {
+    const cached = spellCheckCache.get(cleanWord.toLowerCase())!;
+    const suggestions = cached.suggestions.slice(0, maxSuggestions);
+    console.log(`💡 SpellCheck: Suggestions for "${cleanWord}" from cache:`, suggestions);
+    return suggestions;
+  }
 
-  return suggestions;
+  try {
+    const results = await checkWords([cleanWord]);
+    const result = results[0];
+
+    const suggestions = result.suggestions.slice(0, maxSuggestions);
+    console.log(`💡 SpellCheck: Generated ${suggestions.length} suggestions for "${cleanWord}":`, suggestions);
+    return suggestions;
+  } catch (error) {
+    console.error('❌ SpellCheck: Error getting suggestions:', error);
+    return [];
+  }
+}
+
+/**
+ * Check multiple words at once for better performance
+ * @param words - Array of words to check
+ * @returns Array of results with word, isCorrect, and suggestions
+ */
+export async function checkWords(words: string[]): Promise<Array<{
+  word: string;
+  isCorrect: boolean;
+  suggestions: string[];
+}>> {
+  if (words.length === 0) {
+    return [];
+  }
+
+  console.log(`🔄 SpellCheck: Checking ${words.length} words via API`);
+
+  try {
+    const response = await fetch('/api/spell-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ words }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('❌ SpellCheck: API error:', error);
+      throw new Error(error.error || 'Failed to check spelling');
+    }
+
+    const result = await response.json();
+
+    // Cache the results
+    result.data.forEach((item: any) => {
+      const cleanWord = item.word.replace(/[^\w'-]/g, '');
+      if (cleanWord) {
+        // Manage cache size
+        if (spellCheckCache.size >= CACHE_MAX_SIZE) {
+          const firstKey = spellCheckCache.keys().next().value;
+          spellCheckCache.delete(firstKey);
+        }
+
+        spellCheckCache.set(cleanWord.toLowerCase(), {
+          isCorrect: item.isCorrect,
+          suggestions: item.suggestions
+        });
+      }
+    });
+
+    console.log(`✅ SpellCheck: Successfully checked ${result.data.length} words`);
+    return result.data;
+  } catch (error) {
+    console.error('❌ SpellCheck: Failed to check words:', error);
+    // Return safe defaults on error
+    return words.map(word => ({
+      word,
+      isCorrect: true,
+      suggestions: []
+    }));
+  }
 }
 
 /**
@@ -149,12 +183,11 @@ export function tokenizeForSpellCheck(text: string): Array<{
 
 /**
  * Check if the spell checker is ready to use
- * @returns true if the spell checker is initialized and ready
+ * @returns true since API-based spell checking is always ready
  */
 export function isSpellCheckerReady(): boolean {
-  const ready = spellChecker !== null;
-  console.log(`🔍 SpellCheck: Checker is ${ready ? 'ready' : 'not ready'}`);
-  return ready;
+  console.log('🔍 SpellCheck: API-based checker is always ready');
+  return true;
 }
 
 /**

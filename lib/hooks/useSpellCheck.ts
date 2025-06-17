@@ -7,7 +7,8 @@ import {
   getSpellingSuggestions,
   tokenizeForSpellCheck,
   isSpellCheckerReady,
-  SpellCheckPerformanceTracker
+  SpellCheckPerformanceTracker,
+  checkWords
 } from '@/lib/spellcheck';
 
 console.log('🔄 useSpellCheck: Hook module loaded');
@@ -23,7 +24,7 @@ export interface UseSpellCheckReturn {
   isInitialized: boolean;
   isInitializing: boolean;
   errors: SpellCheckError[];
-  checkText: (text: string) => void;
+  checkText: (text: string) => Promise<void>;
   applySuggestion: (errorIndex: number, suggestion: string) => string;
   initError: string | null;
 }
@@ -71,7 +72,7 @@ export function useSpellCheck(): UseSpellCheckReturn {
   }, [isInitialized, isInitializing]);
 
   // Check text for spelling errors
-  const checkText = useCallback((text: string) => {
+  const checkText = useCallback(async (text: string) => {
     if (!isSpellCheckerReady()) {
       console.warn('⚠️ useSpellCheck: Spell checker not ready, skipping check');
       return;
@@ -82,19 +83,31 @@ export function useSpellCheck(): UseSpellCheckReturn {
 
     try {
       const words = tokenizeForSpellCheck(text);
+
+      if (words.length === 0) {
+        setErrors([]);
+        return;
+      }
+
+      // Extract just the word text for API call
+      const wordTexts = words.map(w => w.word);
+
+      // Check all words in batch for better performance
+      const results = await checkWords(wordTexts);
       const newErrors: SpellCheckError[] = [];
 
-      for (const wordInfo of words) {
-        if (!isWordCorrect(wordInfo.word)) {
-          console.log(`❌ useSpellCheck: Found misspelled word: "${wordInfo.word}"`);
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        const wordInfo = words[i];
 
-          const suggestions = getSpellingSuggestions(wordInfo.word, 5);
+        if (!result.isCorrect) {
+          console.log(`❌ useSpellCheck: Found misspelled word: "${wordInfo.word}"`);
 
           newErrors.push({
             word: wordInfo.word,
             start: wordInfo.start,
             end: wordInfo.end,
-            suggestions
+            suggestions: result.suggestions
           });
         }
       }
@@ -148,20 +161,24 @@ export function useSpellCheck(): UseSpellCheckReturn {
  * Implements the requirement to check spelling when spacebar is pressed
  */
 export function useSpellCheckOnSpace(
-  onSpellCheck: (text: string) => void,
+  onSpellCheck: (text: string) => Promise<void>,
   getText: () => string
 ) {
   console.log('🔄 useSpellCheckOnSpace: Hook initialized');
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = async (event: KeyboardEvent) => {
       // Check for spacebar press
       if (event.code === 'Space' || event.key === ' ') {
         console.log('⌨️ useSpellCheckOnSpace: Spacebar pressed, triggering spell check');
 
-        // Get current text and trigger spell check
-        const currentText = getText();
-        onSpellCheck(currentText);
+        try {
+          // Get current text and trigger spell check
+          const currentText = getText();
+          await onSpellCheck(currentText);
+        } catch (error) {
+          console.error('❌ useSpellCheckOnSpace: Error during spell check:', error);
+        }
       }
     };
 

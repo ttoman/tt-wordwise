@@ -81,6 +81,9 @@ importers:
       '@types/node':
         specifier: ^20
         version: 20.19.1
+      '@types/nspell':
+        specifier: ^2.1.6
+        version: 2.1.6
       '@types/pg':
         specifier: ^8.15.4
         version: 8.15.4
@@ -1093,6 +1096,9 @@ packages:
 
   '@types/node@20.19.1':
     resolution: {integrity: sha512-jJD50LtlD2dodAEO653i3YF04NWak6jN3ky+Ri3Em3mGR39/glWiboM/IePaRbgwSfqM1TpGXfAg8ohn/4dTgA==}
+
+  '@types/nspell@2.1.6':
+    resolution: {integrity: sha512-PnWYqrBZhkKAreX2kIZDJcBeigZJzXC8VmSuNiXeILUNreczBZHLxGEv/pRT+zL8rsXLxT5bRbiIF9wuh6cGgg==}
 
   '@types/pg@8.15.4':
     resolution: {integrity: sha512-I6UNVBAoYbvuWkkU3oosC8yxqH21f4/Jc4DK71JLG3dT2mdlGe1z+ep/LQGXaKaOgcvUrsQoPRqfgtMcvZiJhg==}
@@ -3758,6 +3764,10 @@ snapshots:
   '@types/node@20.19.1':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/nspell@2.1.6':
+    dependencies:
+      '@types/node': 20.19.1
 
   '@types/pg@8.15.4':
     dependencies:

@@ -1,4 +1,4 @@
-import { documentService } from '@/lib/documentService';
+import { serverDocumentService } from '@/lib/documentService.server';
 import { NextRequest, NextResponse } from 'next/server';
 
 console.log('🔄 Documents API route loaded');
@@ -10,7 +10,7 @@ export async function GET() {
   console.log('📥 GET /api/documents - Fetching all documents');
 
   try {
-    const result = await documentService.getDocuments();
+    const result = await serverDocumentService.getDocuments();
 
     if (!result.success) {
       console.error('❌ GET /api/documents - Error:', result.error);
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     const { title, content } = body;
 
-    const result = await documentService.createDoc({ title, content });
+    const result = await serverDocumentService.createDoc({ title, content });
 
     if (!result.success) {
       console.error('❌ POST /api/documents - Error:', result.error);

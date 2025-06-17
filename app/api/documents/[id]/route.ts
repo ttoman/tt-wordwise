@@ -1,4 +1,4 @@
-import { documentService } from '@/lib/documentService';
+import { serverDocumentService } from '@/lib/documentService.server';
 import { NextRequest, NextResponse } from 'next/server';
 
 console.log('🔄 Individual Document API route loaded');
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     console.log('🔍 GET /api/documents/[id] - Document ID:', id);
 
-    const result = await documentService.getDocument(id);
+    const result = await serverDocumentService.getDocument(id);
 
     if (!result.success) {
       console.error('❌ GET /api/documents/[id] - Error:', result.error);
@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const { title, content } = body;
 
-    const result = await documentService.saveDoc(id, { title, content });
+    const result = await serverDocumentService.saveDoc(id, { title, content });
 
     if (!result.success) {
       console.error('❌ PUT /api/documents/[id] - Error:', result.error);
@@ -95,7 +95,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
     console.log('🔍 DELETE /api/documents/[id] - Document ID:', id);
 
-    const result = await documentService.deleteDoc(id);
+    const result = await serverDocumentService.deleteDoc(id);
 
     if (!result.success) {
       console.error('❌ DELETE /api/documents/[id] - Error:', result.error);
