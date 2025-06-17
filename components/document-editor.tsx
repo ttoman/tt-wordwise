@@ -302,29 +302,7 @@ export function DocumentEditor({ document, onSaved, onError }: DocumentEditorPro
           data-placeholder="Start writing..."
         />
 
-        {/* Grammar Suggestions */}
-        {(grammarCheck.suggestions.length > 0 || grammarCheck.isChecking) && (
-          <div className="absolute top-4 right-4 w-80 max-h-96 overflow-y-auto z-10">
-            <GrammarSuggestions
-              suggestions={grammarCheck.suggestions}
-              isChecking={grammarCheck.isChecking}
-              onApply={handleGrammarSuggestionApply}
-              onDismiss={handleGrammarSuggestionDismiss}
-            />
-          </div>
-        )}
-
-        {/* Spell Check Menu */}
-        <SpellCheckMenu
-          error={spellCheckMenu.menuState.error}
-          position={spellCheckMenu.menuState.position}
-          onSuggestionSelect={handleSuggestionApply}
-          onIgnore={() => {
-            console.log('🔄 DocumentEditor: Ignoring spell check suggestion');
-            spellCheckMenu.hideMenu();
-          }}
-          onClose={spellCheckMenu.hideMenu}
-        />
+        {/* Feedback has been moved to the dedicated feedback panel on the right */}
       </CardContent>
 
       <CardFooter className="justify-between text-xs text-muted-foreground">

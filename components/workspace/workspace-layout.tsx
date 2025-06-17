@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { DocumentSidebar } from './document-sidebar';
 import { DocumentEditor } from '@/components/document-editor';
-
+import { FeedbackPanel } from '@/components/feedback-panel';
 import { useDocuments, useDocument } from '@/lib/hooks/useDocuments';
+import { useSpellCheck, useSpellCheckOnSpace } from '@/lib/hooks/useSpellCheck';
+import { useGrammarCheck, useGrammarCheckOnIdle } from '@/lib/hooks/useGrammarCheck';
 import { Document } from '@/lib/documentService';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Menu, X, FileText, AlertTriangle, CheckCircle, Edit3, BookOpen } from 'lucide-react';
+import { Menu, X, FileText, AlertTriangle } from 'lucide-react';
 
 console.log('🔄 WorkspaceLayout component loaded');
 
@@ -19,36 +21,111 @@ console.log('🔄 WorkspaceLayout component loaded');
 export function WorkspaceLayout() {
   console.log('🔄 WorkspaceLayout: Rendering');
 
-  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
+  const [documentContent, setDocumentContent] = useState<string>('');
 
-  // Fetch documents to auto-select first one
-  const { data: documents = [], isLoading: documentsLoading } = useDocuments();
+  // Document state
+  const { documents, loading: documentsLoading, error: documentsError } = useDocuments();
+  const { document: selectedDocument, loading: documentLoading, error: documentError } = useDocument(selectedDocumentId);
 
-  // Fetch selected document
-  const {
-    data: selectedDocument,
-    isLoading: documentLoading,
-    error: documentError
-  } = useDocument(selectedDocumentId || '');
+  // Feedback state - manage at workspace level
+  const spellCheck = useSpellCheck();
+  const grammarCheck = useGrammarCheck();
 
-  console.log('📊 WorkspaceLayout: State', {
-    selectedDocumentId,
-    documentsCount: documents.length,
-    sidebarOpen,
-    isMobile,
-    documentsLoading,
-    documentLoading
-  });
+  // Refs for feedback integration
+  const contentEditableRef = useRef<HTMLDivElement>(null);
 
-  // Auto-select first document if none selected
-  useEffect(() => {
-    if (!selectedDocumentId && documents.length > 0 && !documentsLoading) {
-      console.log('🔄 WorkspaceLayout: Auto-selecting first document');
-      setSelectedDocumentId(documents[0].id);
+  // Get cursor position helper
+  const getCursorPosition = useCallback(() => {
+    if (!contentEditableRef.current) return 0;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return 0;
+
+    const range = selection.getRangeAt(0);
+    const preCaretRange = range.cloneRange();
+    preCaretRange.selectNodeContents(contentEditableRef.current);
+    preCaretRange.setEnd(range.endContainer, range.endOffset);
+
+    return preCaretRange.toString().length;
+  }, []);
+
+  // Grammar check on idle (2 second debounce)
+  const scheduleGrammarCheck = useGrammarCheckOnIdle(
+    grammarCheck.checkGrammar,
+    () => documentContent,
+    getCursorPosition
+  );
+
+  // Spell check on spacebar press
+  useSpellCheckOnSpace(
+    (text: string) => {
+      console.log('🔍 WorkspaceLayout: Triggering spell check on spacebar');
+      spellCheck.checkText(text);
+    },
+    () => documentContent
+  );
+
+  // Handle document content changes
+  const handleDocumentContentChange = useCallback((content: string) => {
+    console.log('📝 WorkspaceLayout: Document content changed, length:', content.length);
+    setDocumentContent(content);
+
+    // Schedule grammar check
+    scheduleGrammarCheck();
+  }, [scheduleGrammarCheck]);
+
+  // Handle spell check error interactions
+  const handleSpellErrorClick = useCallback((error: any) => {
+    console.log('🔍 WorkspaceLayout: Spell error clicked:', error.word);
+    // Focus editor and potentially highlight the word
+    if (contentEditableRef.current) {
+      contentEditableRef.current.focus();
     }
-  }, [documents, selectedDocumentId, documentsLoading]);
+  }, []);
+
+  const handleSpellErrorIgnore = useCallback((error: any) => {
+    console.log('🚫 WorkspaceLayout: Ignoring spell error:', error.word);
+    // Could implement ignore functionality here
+  }, []);
+
+  // Handle grammar suggestion interactions
+  const handleGrammarSuggestionApply = useCallback((index: number, suggestion: string) => {
+    console.log('✅ WorkspaceLayout: Applying grammar suggestion:', suggestion);
+
+    const grammarSuggestionData = grammarCheck.suggestions[index];
+    if (!grammarSuggestionData) return;
+
+    // Replace the original text with the suggestion
+    const newContent = documentContent.replace(grammarSuggestionData.original, suggestion);
+    setDocumentContent(newContent);
+    handleDocumentContentChange(newContent);
+
+    // Apply the suggestion (removes it from the list)
+    grammarCheck.applySuggestion(index, suggestion);
+  }, [grammarCheck, documentContent, handleDocumentContentChange]);
+
+  const handleGrammarSuggestionDismiss = useCallback((index: number) => {
+    console.log('🚫 WorkspaceLayout: Dismissing grammar suggestion', index);
+    grammarCheck.dismissSuggestion(index);
+  }, [grammarCheck]);
+
+  const handleGrammarRecheck = useCallback(() => {
+    console.log('🔄 WorkspaceLayout: Manual grammar recheck triggered');
+    if (documentContent.trim().length > 0) {
+      grammarCheck.checkGrammar(documentContent, getCursorPosition());
+    }
+  }, [grammarCheck, documentContent, getCursorPosition]);
+
+  // Update content when document changes
+  useEffect(() => {
+    if (selectedDocument) {
+      console.log('🔄 WorkspaceLayout: Selected document changed, updating content');
+      setDocumentContent(selectedDocument.content || '');
+    }
+  }, [selectedDocument]);
 
   // Handle responsive behavior
   useEffect(() => {
@@ -73,10 +150,8 @@ export function WorkspaceLayout() {
 
   // Handle document selection
   const handleDocumentSelect = (document: Document) => {
-    console.log('🔄 WorkspaceLayout: Document selected:', document.id);
+    console.log('📄 WorkspaceLayout: Document selected:', document.id);
     setSelectedDocumentId(document.id);
-
-    // Close sidebar on mobile after selection
     if (isMobile) {
       setSidebarOpen(false);
     }
@@ -84,10 +159,8 @@ export function WorkspaceLayout() {
 
   // Handle document creation
   const handleDocumentCreate = (document: Document) => {
-    console.log('🔄 WorkspaceLayout: Document created:', document.id);
+    console.log('📄 WorkspaceLayout: Document created:', document.id);
     setSelectedDocumentId(document.id);
-
-    // Close sidebar on mobile after creation
     if (isMobile) {
       setSidebarOpen(false);
     }
@@ -233,60 +306,34 @@ export function WorkspaceLayout() {
 
         {/* Feedback Panel - Only show when document is selected and not on mobile */}
         {selectedDocument && !documentLoading && !documentError && !isMobile && (
-          <div className="w-80 h-full bg-background border-l overflow-y-auto">
-            <div className="space-y-4 p-4">
-              {/* Header */}
-              <div className="space-y-2">
-                <h2 className="text-lg font-semibold">Writing Feedback</h2>
-                <p className="text-xs text-muted-foreground">
-                  Real-time analysis and suggestions for your document
-                </p>
-              </div>
+          <FeedbackPanel
+            // Spell check data
+            spellErrors={spellCheck.errors}
+            isSpellCheckInitialized={spellCheck.isInitialized}
+            isSpellCheckInitializing={spellCheck.isInitializing}
+            spellCheckInitError={spellCheck.initError}
+            onSpellErrorClick={handleSpellErrorClick}
+            onSpellErrorIgnore={handleSpellErrorIgnore}
 
-              {/* Placeholder content for now */}
-              <Card>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle size={16} className="text-green-600" />
-                      <span className="text-sm font-medium">Spelling</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Spell check feedback will appear here
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+            // Grammar check data
+            grammarSuggestions={grammarCheck.suggestions}
+            isGrammarChecking={grammarCheck.isChecking}
+            grammarError={grammarCheck.error}
+            grammarScore={grammarCheck.score}
+            grammarImprovedScore={grammarCheck.improvedScore}
+            grammarReadabilityGrade={grammarCheck.readabilityGrade}
+            grammarCostInfo={grammarCheck.costInfo || {
+              totalCost: 0,
+              remainingBudget: 0,
+              resetTime: 0
+            }}
+            onGrammarSuggestionApply={handleGrammarSuggestionApply}
+            onGrammarSuggestionDismiss={handleGrammarSuggestionDismiss}
+            onGrammarRecheck={handleGrammarRecheck}
 
-              <Card>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Edit3 size={16} className="text-blue-600" />
-                      <span className="text-sm font-medium">Grammar & Style</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Grammar suggestions will appear here
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <BookOpen size={16} className="text-purple-600" />
-                      <span className="text-sm font-medium">Readability</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Readability analysis will appear here
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+            // Document content for readability
+            content={documentContent}
+          />
         )}
       </div>
     </div>
