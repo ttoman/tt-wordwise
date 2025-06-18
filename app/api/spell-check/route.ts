@@ -4,13 +4,13 @@ import nspell from 'nspell';
 console.log('🔄 SpellCheck API: Route loaded');
 
 // Global spell checker instance for performance
-let spellChecker: nspell.Nspell | null = null;
+let spellChecker: any = null;
 let isInitializing = false;
 
 /**
  * Initialize spell checker on the server side
  */
-async function initializeSpellChecker(): Promise<nspell.Nspell> {
+async function initializeSpellChecker() {
   if (spellChecker) {
     return spellChecker;
   }
@@ -29,7 +29,7 @@ async function initializeSpellChecker(): Promise<nspell.Nspell> {
     console.log('📦 SpellCheck API: Loading dictionary files (server-side)');
 
     const dictionaryEn = await import('dictionary-en');
-    spellChecker = nspell(dictionaryEn.default);
+    spellChecker = nspell(dictionaryEn.default as any);
 
     console.log('✅ SpellCheck API: Spell checker initialized successfully');
     return spellChecker;
